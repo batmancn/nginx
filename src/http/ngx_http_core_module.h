@@ -97,6 +97,7 @@ typedef struct {
 } ngx_http_listen_opt_t;
 
 
+// http://nginx.org/en/docs/dev/development_guide.html#http_phases
 typedef enum {
     NGX_HTTP_POST_READ_PHASE = 0,
 

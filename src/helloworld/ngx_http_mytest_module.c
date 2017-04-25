@@ -3,24 +3,192 @@
 #include <ngx_http.h>
 
 
+
+static void*
+ngx_http_mytest_create_loc_conf(ngx_conf_t *cf);
+
+static char*
+ngx_conf_set_myconfig(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+
 static char *
-ngx_http_mytest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+ngx_http_mytest_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 
-static ngx_int_t ngx_http_mytest_handler(ngx_http_request_t *r);
+ngx_int_t
+ngx_http_mytest_post_conf(ngx_conf_t *cf);
 
+
+typedef struct
+{
+    ngx_str_t   	my_str;
+    ngx_int_t   	my_num;
+    ngx_flag_t   	my_flag;
+    size_t		my_size;
+    ngx_array_t*  	my_str_array;
+    ngx_array_t*  	my_keyval;
+    off_t   	my_off;
+    ngx_msec_t   	my_msec;
+    time_t   	my_sec;
+    ngx_bufs_t   	my_bufs;
+    ngx_uint_t   	my_enum_seq;
+    ngx_uint_t	my_bitmask;
+    ngx_uint_t   	my_access;
+    ngx_path_t*	my_path;
+
+    ngx_str_t		my_config_str;
+    ngx_int_t		my_config_num;
+} ngx_http_mytest_conf_t;
+
+static ngx_conf_enum_t  test_enums[] =
+{
+    { ngx_string("apple"), 1 },
+    { ngx_string("banana"), 2 },
+    { ngx_string("orange"), 3 },
+    { ngx_null_string, 0 }
+};
+
+static ngx_conf_bitmask_t  test_bitmasks[] =
+{
+    { ngx_string("good"), 0x0002 },
+    { ngx_string("better"), 0x0004 },
+    { ngx_string("best"), 0x0008 },
+    { ngx_null_string, 0 }
+};
 
 
 static ngx_command_t  ngx_http_mytest_commands[] =
 {
 
     {
-        ngx_string("mytest"),
-        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_HTTP_LMT_CONF | NGX_CONF_NOARGS,
-        ngx_http_mytest,
+        ngx_string("test_flag"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_flag),
+        NULL
+    },
+
+    {
+        ngx_string("test_str"),
+        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_str_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_str),
+        NULL
+    },
+
+    {
+        ngx_string("test_str_array"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_str_array_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_str_array),
+        NULL
+    },
+
+    {
+        ngx_string("test_keyval"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE2,
+        ngx_conf_set_keyval_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_keyval),
+        NULL
+    },
+
+    {
+        ngx_string("test_num"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_num_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_num),
+        NULL
+    },
+
+    {
+        ngx_string("test_size"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_size_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_size),
+        NULL
+    },
+
+    {
+        ngx_string("test_off"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_off_slot, NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_off),
+        NULL
+    },
+
+    {
+        ngx_string("test_msec"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_msec_slot, NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_msec),
+        NULL
+    },
+
+    {
+        ngx_string("test_sec"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_sec_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_sec),
+        NULL
+    },
+
+    {
+        ngx_string("test_bufs"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE2,
+        ngx_conf_set_bufs_slot, NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_bufs),
+        NULL
+    },
+
+    {
+        ngx_string("test_enum"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_enum_slot, NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_enum_seq),
+        test_enums
+    },
+
+    {
+        ngx_string("test_bitmask"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_bitmask_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_bitmask),
+        test_bitmasks
+    },
+
+    {
+        ngx_string("test_access"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE123,
+        ngx_conf_set_access_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_access),
+        NULL
+    },
+
+    {
+        ngx_string("test_path"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1234,
+        ngx_conf_set_path_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_http_mytest_conf_t, my_path),
+        NULL
+    },
+
+    {
+        ngx_string("test_myconfig"),
+        NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
+        ngx_conf_set_myconfig,
         NGX_HTTP_LOC_CONF_OFFSET,
         0,
         NULL
     },
+
 
     ngx_null_command
 };
@@ -28,7 +196,7 @@ static ngx_command_t  ngx_http_mytest_commands[] =
 static ngx_http_module_t  ngx_http_mytest_module_ctx =
 {
     NULL,                              /* preconfiguration */
-    NULL,                  		/* postconfiguration */
+    ngx_http_mytest_post_conf,      /* postconfiguration */
 
     NULL,                              /* create main configuration */
     NULL,                              /* init main configuration */
@@ -36,8 +204,8 @@ static ngx_http_module_t  ngx_http_mytest_module_ctx =
     NULL,                              /* create server configuration */
     NULL,                              /* merge server configuration */
 
-    NULL,       			/* create location configuration */
-    NULL         			/* merge location configuration */
+    ngx_http_mytest_create_loc_conf, /* create location configuration */
+    ngx_http_mytest_merge_loc_conf   /* merge location configuration */
 };
 
 ngx_module_t  ngx_http_mytest_module =
@@ -56,84 +224,141 @@ ngx_module_t  ngx_http_mytest_module =
     NGX_MODULE_V1_PADDING
 };
 
-
 static char *
-ngx_http_mytest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+ngx_http_mytest_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_http_core_loc_conf_t  *clcf;
+    ngx_http_mytest_conf_t *prev = (ngx_http_mytest_conf_t *)parent;
+    ngx_http_mytest_conf_t *conf = (ngx_http_mytest_conf_t *)child;
+    ngx_conf_merge_str_value(conf->my_str,
+                             prev->my_str, "defaultstr");
+    ngx_conf_merge_value(conf->my_flag, prev->my_flag, 0);
 
-    //首先找到mytest配置项所属的配置块，clcf貌似是location块内的数据
-//结构，其实不然，它可以是main、srv或者loc级别配置项，也就是说在每个
-//http{}和server{}内也都有一个ngx_http_core_loc_conf_t结构体
-    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-
-    //http框架在处理用户请求进行到NGX_HTTP_CONTENT_PHASE阶段时，如果
-//请求的主机域名、URI与mytest配置项所在的配置块相匹配，就将调用我们
-//实现的ngx_http_mytest_handler方法处理这个请求
-    clcf->handler = ngx_http_mytest_handler;
 
     return NGX_CONF_OK;
 }
 
 
-static ngx_int_t ngx_http_mytest_handler(ngx_http_request_t *r)
+static char* ngx_conf_set_myconfig(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
-    //必须是GET或者HEAD方法，否则返回405 Not Allowed
-    if (!(r->method & (NGX_HTTP_GET | NGX_HTTP_HEAD)))
+    //注意，参数conf就是http框架传给我们的，在ngx_http_mytest_create_loc_conf
+//回调方法中分配的结构体ngx_http_mytest_conf_t
+    ngx_http_mytest_conf_t  *mycf = conf;
+
+    // cf->args是1个ngx_array_t队列，它的成员都是ngx_str_t结构。
+//我们用value指向ngx_array_t的elts内容，其中value[1]就是第1
+//个参数，同理value[2]是第2个参数
+    ngx_str_t* value = cf->args->elts;
+
+    //ngx_array_t的nelts表示参数的个数
+    if (cf->args->nelts > 1)
     {
-        return NGX_HTTP_NOT_ALLOWED;
+        //直接赋值即可， ngx_str_t结构只是指针的传递
+        mycf->my_config_str = value[1];
+    }
+    if (cf->args->nelts > 2)
+    {
+        //将字符串形式的第2个参数转为整型
+        mycf->my_config_num = ngx_atoi(value[2].data, value[2].len);
+        //如果字符串转化整型失败，将报"invalid number"错误，
+//nginx启动失败
+        if (mycf->my_config_num == NGX_ERROR)
+        {
+            return "invalid number";
+        }
     }
 
-    //丢弃请求中的包体
-    ngx_int_t rc = ngx_http_discard_request_body(r);
-    if (rc != NGX_OK)
+    //返回成功
+    return NGX_CONF_OK;
+}
+
+
+
+static void* ngx_http_mytest_create_loc_conf(ngx_conf_t *cf)
+{
+    ngx_http_mytest_conf_t  *mycf;
+
+    mycf = (ngx_http_mytest_conf_t  *)ngx_pcalloc(cf->pool, sizeof(ngx_http_mytest_conf_t));
+    if (mycf == NULL)
     {
-        return rc;
+        return NULL;
     }
 
-    //设置返回的Content-Type。注意，ngx_str_t有一个很方便的初始化宏
-//ngx_string，它可以把ngx_str_t的data和len成员都设置好
-    ngx_str_t type = ngx_string("text/plain");
-    //返回的包体内容
-    ngx_str_t response = ngx_string("Hello World!");
-    //设置返回状态码
-    r->headers_out.status = NGX_HTTP_OK;
-    //响应包是有包体内容的，所以需要设置Content-Length长度
-    r->headers_out.content_length_n = response.len;
-    //设置Content-Type
-    r->headers_out.content_type = type;
+    mycf->my_flag = NGX_CONF_UNSET;
+    mycf->my_num = NGX_CONF_UNSET;
+    mycf->my_str_array = NGX_CONF_UNSET_PTR;
+    mycf->my_keyval = NULL;
+    mycf->my_off = NGX_CONF_UNSET;
+    mycf->my_msec = NGX_CONF_UNSET_MSEC;
+    mycf->my_sec = NGX_CONF_UNSET;
+    mycf->my_size = NGX_CONF_UNSET_SIZE;
 
-    //发送http头部
-    rc = ngx_http_send_header(r);
-    if (rc == NGX_ERROR || rc > NGX_OK || r->header_only)
+    return mycf;
+}
+
+//for test
+extern ngx_module_t  ngx_http_module;
+extern ngx_module_t  ngx_http_core_module;
+
+//仅用于遍历location内的test_str字段
+void traversal(ngx_conf_t *cf, ngx_http_location_tree_node_t* node)
+{
+    if (node != NULL)
     {
-        return rc;
+        traversal(cf, node->left);
+        ngx_http_core_loc_conf_t* loc = NULL;
+        if (node->exact != NULL)
+        {
+            loc = (ngx_http_core_loc_conf_t*)node->exact;
+        }
+        else if (node->inclusive != NULL)
+        {
+            loc = (ngx_http_core_loc_conf_t*)node->inclusive;
+        }
+
+        if (loc != NULL)
+        {
+            ngx_http_mytest_conf_t  *mycf = (ngx_http_mytest_conf_t  *)loc->loc_conf[ngx_http_mytest_module.ctx_index];
+            ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "in location[name=%V]{} test_str=%V",
+                          &loc->name, &mycf->my_str);
+        }
+        else
+        {
+            ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "wrong location tree");
+        }
+
+        traversal(cf, node->right);
+    }
+}
+
+//下面以test_str为例在屏幕上输出读取到的所有不同块的值
+ngx_int_t
+ngx_http_mytest_post_conf(ngx_conf_t *cf)
+{
+    ngx_uint_t i = 0;
+    ngx_http_conf_ctx_t* http_root_conf = (ngx_http_conf_ctx_t*)ngx_get_conf(cf->cycle->conf_ctx, ngx_http_module);
+
+    ngx_http_mytest_conf_t  *mycf;
+    mycf = (ngx_http_mytest_conf_t  *)http_root_conf->loc_conf[ngx_http_mytest_module.ctx_index];
+    ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "in http{} test_str=%V", &mycf->my_str);
+
+    ngx_http_core_main_conf_t* core_main_conf = (ngx_http_core_main_conf_t*)
+                                                http_root_conf->main_conf[ngx_http_core_module.ctx_index];
+
+    for (i = 0; i < core_main_conf->servers.nelts; i++)
+    {
+        ngx_http_core_srv_conf_t* tmpcoresrv = *((ngx_http_core_srv_conf_t**)
+                                                 (core_main_conf->servers.elts) + i);
+        mycf = (ngx_http_mytest_conf_t  *)tmpcoresrv->ctx->loc_conf[ngx_http_mytest_module.ctx_index];
+        ngx_log_error(NGX_LOG_ALERT, cf->log, 0, "in server[name=%V]{} test_str=%V",
+                      &tmpcoresrv->server_name, &mycf->my_str);
+
+        ngx_http_core_loc_conf_t* tmpcoreloc = (ngx_http_core_loc_conf_t*)
+                                               tmpcoresrv->ctx->loc_conf[ngx_http_core_module.ctx_index];
+
+        traversal(cf, tmpcoreloc->static_locations);
     }
 
-    //构造ngx_buf_t结构准备发送包体
-    ngx_buf_t                 *b;
-    b = ngx_create_temp_buf(r->pool, response.len);
-    if (b == NULL)
-    {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-    //将Hello World拷贝到ngx_buf_t指向的内存中
-    ngx_memcpy(b->pos, response.data, response.len);
-    //注意，一定要设置好last指针
-    b->last = b->pos + response.len;
-    //声明这是最后一块缓冲区
-    b->last_buf = 1;
-
-    //构造发送时的ngx_chain_t结构体
-    ngx_chain_t		out;
-    //赋值ngx_buf_t
-    out.buf = b;
-    //设置next为NULL
-    out.next = NULL;
-
-    //最后一步发送包体，http框架会调用ngx_http_finalize_request方法
-//结束请求
-    return ngx_http_output_filter(r, &out);
+    return NGX_OK;
 }
 
 
